@@ -6,6 +6,7 @@ output:
 ---
 
 
+
 ## Loading and preprocessing the data
 ```{r , echo=TRUE}
 require(dplyr)
@@ -19,9 +20,11 @@ activity <- read.csv('activity.csv')
  by_date <- group_by(activity, date)
  part1 <- summarise(by_date, total = sum(steps, na.rm= TRUE) )
 mean.steps <- round(mean(part1$total))
-median.steps <- round(median(part1$total))
+median.steps <- round(median(part1$total), digits = 0)
 hist(part1$total, main="Number of steps by day", xlab="number of steps")
 ```
+
+
 The mean of the total number of steps taken per day is on average of **`r mean.steps` steps**
 
 The median of the total number of steps taken per day is on average of **`r median.steps` steps**
@@ -29,15 +32,54 @@ The median of the total number of steps taken per day is on average of **`r medi
 ## What is the average daily activity pattern?
 ```{r , echo=TRUE}
 plot(activity$interval, activity$steps, type="l")
+interval.group <- group_by(activity, interval)
+interval.steps <- summarise(interval.group, mean(steps, na.rm = TRUE))
+
+colnames(interval.steps) <- c("interval", "mean.steps")
+most.steps <- interval.steps[which.max(interval.steps$mean.steps),]
 ```
-The 800 5 minutes interval contains the most steps across the dataset. 
+TODO: put a R embedded  formula 
+The 835 5 minutes interval contains the most steps across the dataset. 
 
 
 ## Imputing missing values
 ```{r , echo=TRUE}
 missing.steps <- nrow(filter(activity, is.na(steps)))
 ```
+
 Total number of missing values in the dataset: **`r missing.steps` **
 
+
+```{r , echo=TRUE}
+interval.group <- group_by(activity, interval)
+interval.steps <- summarise(interval.group, mean(steps, na.rm = TRUE))
+replace.na <- function(x)
+{
+  if(x > 2355 | x < 0 | (x %% 5 != 0)){
+    return(NA)
+  }else{
+  return(interval.steps[which(interval.steps[,1]== x),2][[1]])
+  }
+}
+#replacing every na with the mean of the corresponding 5 min group
+activity.mod <- activity
+for(i in 1:(dim(activity.mod)[1]) ){
+  if(is.na(activity.mod[i,]$steps)){
+    activity.mod[i,]$steps = replace.na(activity.mod[i,]$interval)
+  }
+}
+#idem as part1
+ by_date.mod <- group_by(activity.mod, date)
+ part1.mod <- summarise(by_date.mod, total = sum(steps, na.rm= TRUE) )
+mean.steps.mod <- round(mean(part1.mod$total), digits = 0)
+median.steps.mod <- round(median(part1.mod$total), digits = 0)
+hist(part1.mod$total, main="Number of steps by day (with NA replaced by the mean of the group", xlab="number of steps")
+```
+The mean of the total number of steps taken per day is on average of **`r mean.steps.mod` steps**
+
+The median of the total number of steps taken per day is on average of **`r median.steps.mod` steps**
+
+
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
