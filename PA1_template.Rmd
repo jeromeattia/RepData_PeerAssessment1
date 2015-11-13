@@ -1,6 +1,6 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
+output:
   html_document:
     keep_md: true
 ---
@@ -8,9 +8,12 @@ output:
 
 
 ## Loading and preprocessing the data
-```{r , echo=TRUE}
+```{r load_packages, echo=TRUE,  results="hide"}
 require(dplyr)
 require(ggplot2)
+```
+
+```{r read_data, echo=TRUE}
 unzip('activity.zip')
 activity <- read.csv('activity.csv')
 ```
@@ -18,10 +21,13 @@ activity <- read.csv('activity.csv')
 
 ## What is mean total number of steps taken per day?
 ```{r , echo=TRUE}
- by_date <- group_by(activity, date)
- part1 <- summarise(by_date, total = sum(steps, na.rm= TRUE) )
+by_date <- group_by(activity, date)
+part1 <- summarise(by_date, total = sum(steps, na.rm= TRUE) )
 mean.steps <- round(mean(part1$total))
-median.steps <- round(median(part1$total), digits = 0)
+median.steps <- format(round(median(part1$total), digits = 0), scientific = FALSE)
+```
+
+```{r steps_by_day, echo=TRUE}
 hist(part1$total, main="Number of steps by day", xlab="number of steps")
 ```
 
@@ -31,30 +37,33 @@ The mean of the total number of steps taken per day is on average of **`r mean.s
 The median of the total number of steps taken per day is on average of **`r median.steps` steps**
 
 ## What is the average daily activity pattern?
-```{r , echo=TRUE}
-plot(activity$interval, activity$steps, type="l")
+```{r daily_pattern_fig, echo=TRUE}
+plot(activity$interval, activity$steps, type="l",xlab="interval", ylab="steps", main="Daily activity pattern")
+```
+```{r daily_pattern, echo=TRUE}
 interval.group <- group_by(activity, interval)
 interval.steps <- summarise(interval.group, mean(steps, na.rm = TRUE))
 
 colnames(interval.steps) <- c("interval", "mean.steps")
 most.steps <- interval.steps[which.max(interval.steps$mean.steps),]
 ```
-TODO: put a R embedded  formula 
 
-The 835 5 minutes interval contains the most steps across the dataset. 
+The **`r most.steps$interval`** 5 minutes interval contains the most steps across the dataset.
 
 
 ## Imputing missing values
-```{r , echo=TRUE}
+```{r missing_values, echo=TRUE}
 missing.steps <- nrow(filter(activity, is.na(steps)))
 ```
 
-Total number of missing values in the dataset: **`r missing.steps` **
+Total number of missing values in the dataset: **`r missing.steps`**
 
 
-```{r , echo=TRUE}
+```{r replace_na, echo=TRUE}
 interval.group <- group_by(activity, interval)
 interval.steps <- summarise(interval.group, mean(steps, na.rm = TRUE))
+
+#replace na return the mean of the interval group for a given interval.
 replace.na <- function(x)
 {
   if(x > 2355 | x < 0 | (x %% 5 != 0)){
@@ -63,7 +72,9 @@ replace.na <- function(x)
   return(interval.steps[which(interval.steps[,1]== x),2][[1]])
   }
 }
+
 #replacing every na with the mean of the corresponding 5 min group
+#and create a modified dataframe (activity.mod).
 activity.mod <- activity
 for(i in 1:(dim(activity.mod)[1]) ){
   if(is.na(activity.mod[i,]$steps)){
@@ -75,25 +86,28 @@ for(i in 1:(dim(activity.mod)[1]) ){
  part1.mod <- summarise(by_date.mod, total = sum(steps, na.rm= TRUE) )
 mean.steps.mod <- round(mean(part1.mod$total), digits = 0)
 median.steps.mod <- round(median(part1.mod$total), digits = 0)
+```
+```{r histogram_na_replaced, echo=TRUE}
 hist(part1.mod$total, main="Number of steps by day (with NA replaced by the mean of the group", xlab="number of steps")
 ```
 
-The mean of the total number of steps taken per day is on average of **`r mean.steps.mod` steps**
+The mean of the total number of steps taken per day is on average of **`r format(mean.steps.mod, scientific=FALSE)` steps**
 
-The median of the total number of steps taken per day is on average of **`r median.steps.mod` steps**
+The median of the total number of steps taken per day is on average of **`r format(median.steps.mod, scientific=FALSE)` steps**
 
 
 The substitution of missing data by their group mean doesn't modify  the mean or median value of the number of steps by days.
-I render the distribution more normal.
+It render the distribution more normal.
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
 
-```{r , echo=TRUE}
+```{r weekly_patterns, echo=TRUE}
+
 dow <- function(x)
 {
   num.day <- as.POSIXlt(x)$wday
-  if(num.day == 0 | num.day == 6) 
+  if(num.day == 0 | num.day == 6)
   {
     return( "weekend")
   }else {
@@ -104,6 +118,8 @@ dow <- function(x)
 activity.mod <- mutate(activity.mod, numday = as.POSIXlt(as.Date(date))$wday)
 activity.mod <- mutate(activity.mod, doweek = ifelse(numday %in% c(0,6), "weekend","weekday"))
 
+#There is probably a oneliner in R, but lacking of expertise, I separated the dataframe in two groups.
+#merging them after calculating the mean steps by interval.
 g1 <- subset(activity.mod, doweek == "weekend")
 g2 <- subset(activity.mod, doweek == "weekday")
 
@@ -115,6 +131,12 @@ interval.steps.g1$doweek = "weekend"
 interval.steps.g2$doweek = "weekday"
 final.table <- rbind(interval.steps.g1, interval.steps.g2)
 colnames(final.table) <- c("interval", "mean.steps", "doweek")
+```
+```{r weekday_weekend, echo=TRUE, fig.width=8, fig.height=6}
 qplot(interval, mean.steps, data=final.table, facets = .~doweek, geom="line")
 ```
 
+Eventually, there is a noticeable different pattern of activity between the weekdays, with a peak
+of activity in the morning, probably going to work, then a quiet sequence, probably sitting at the desk !
+The weekend is marked by a globally more active day, but without the big morning peak.
+Anyway, very interesting data, pushing for having his/her own personal monitor!
