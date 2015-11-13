@@ -10,6 +10,7 @@ output:
 ## Loading and preprocessing the data
 ```{r , echo=TRUE}
 require(dplyr)
+require(ggplot2)
 unzip('activity.zip')
 activity <- read.csv('activity.csv')
 ```
@@ -39,6 +40,7 @@ colnames(interval.steps) <- c("interval", "mean.steps")
 most.steps <- interval.steps[which.max(interval.steps$mean.steps),]
 ```
 TODO: put a R embedded  formula 
+
 The 835 5 minutes interval contains the most steps across the dataset. 
 
 
@@ -75,11 +77,44 @@ mean.steps.mod <- round(mean(part1.mod$total), digits = 0)
 median.steps.mod <- round(median(part1.mod$total), digits = 0)
 hist(part1.mod$total, main="Number of steps by day (with NA replaced by the mean of the group", xlab="number of steps")
 ```
+
 The mean of the total number of steps taken per day is on average of **`r mean.steps.mod` steps**
 
 The median of the total number of steps taken per day is on average of **`r median.steps.mod` steps**
 
 
-```
+The substitution of missing data by their group mean doesn't modify  the mean or median value of the number of steps by days.
+I render the distribution more normal.
+
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r , echo=TRUE}
+dow <- function(x)
+{
+  num.day <- as.POSIXlt(x)$wday
+  if(num.day == 0 | num.day == 6) 
+  {
+    return( "weekend")
+  }else {
+    return("weekday")
+  }
+}
+
+activity.mod <- mutate(activity.mod, numday = as.POSIXlt(as.Date(date))$wday)
+activity.mod <- mutate(activity.mod, doweek = ifelse(numday %in% c(0,6), "weekend","weekday"))
+
+g1 <- subset(activity.mod, doweek == "weekend")
+g2 <- subset(activity.mod, doweek == "weekday")
+
+interval.g1 <- group_by(g1, interval)
+interval.g2 <- group_by(g2, interval)
+interval.steps.g1 <- summarise(interval.g1, mean(steps, na.rm = TRUE))
+interval.steps.g2 <- summarise(interval.g2, mean(steps, na.rm = TRUE))
+interval.steps.g1$doweek = "weekend"
+interval.steps.g2$doweek = "weekday"
+final.table <- rbind(interval.steps.g1, interval.steps.g2)
+colnames(final.table) <- c("interval", "mean.steps", "doweek")
+qplot(interval, mean.steps, data=final.table, facets = .~doweek, geom="line")
+```
+
